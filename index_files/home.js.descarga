@@ -1,0 +1,364 @@
+"use strict";
+
+function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _classCallCheck(a, n) { if (!(a instanceof n)) throw new TypeError("Cannot call a class as a function"); }
+function _defineProperties(e, r) { for (var t = 0; t < r.length; t++) { var o = r[t]; o.enumerable = o.enumerable || !1, o.configurable = !0, "value" in o && (o.writable = !0), Object.defineProperty(e, _toPropertyKey(o.key), o); } }
+function _createClass(e, r, t) { return r && _defineProperties(e.prototype, r), t && _defineProperties(e, t), Object.defineProperty(e, "prototype", { writable: !1 }), e; }
+function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
+function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+// initialize tooltips
+$('[data-toggle="tooltip"]').tooltip();
+var app = {
+  // properties
+  offset: 68,
+  ERROR_MESSAGE: 'Se ha producido un error en la petición, por favor intentar más tarde',
+  ajaxStart: new Event('ajax-start'),
+  ajaxEnd: new Event('ajax-end'),
+  //ajaxLoader: document.querySelector('#app-ajax-loader'),
+  //methods
+  ajax: function ajax(settings) {
+    var _this = this;
+    return new Promise(function (resolve, reject) {
+      if (!settings.url) throw 'ajax: Please give an URL';
+      if (!settings.method) throw 'ajax: Please give a method';
+      settings.data ? null : settings.data = null;
+      settings.loader ? null : settings.loader = true;
+      if (settings.loader) document.dispatchEvent(_this.ajaxStart);
+      var xhr = new XMLHttpRequest();
+      xhr.addEventListener('load', function () {
+        if (settings.loader) document.dispatchEvent(_this.ajaxEnd);
+        resolve(xhr);
+      });
+      xhr.addEventListener('error', function () {
+        if (settings.loader) document.dispatchEvent(_this.ajaxEnd);
+        app.notification.open(_this.ERROR_MESSAGE);
+        reject(xhr);
+      });
+      xhr.open(settings.method, settings.url);
+      xhr.setRequestHeader('Accept', 'application/json');
+      var meta = document.querySelector('meta[name="csrf-token"]');
+      if (meta) xhr.setRequestHeader('X-CSRF-TOKEN', meta.getAttribute('content'));
+      xhr.send(settings.data);
+    });
+  },
+  disableButton: function disableButton(button) {
+    button.setAttribute('disabled', 'disabled');
+    button.innerHTML = 'PROCESANDO... <i class="fal fa-spin fa-spinner"></i>';
+  },
+  enableButton: function enableButton(button, text, icon) {
+    button.removeAttribute('disabled');
+    button.innerHTML = text + (icon ? "&nbsp;&nbsp;<i class=\"fal fa-".concat(icon, "\"></i>") : '');
+  },
+  evn: function evn() {
+    document.addEventListener('ajax-start', function () {
+      //this.ajaxLoader.style.display = 'block'
+    });
+    document.addEventListener('ajax-end', function () {
+      //this.ajaxLoader.style.display = 'none'
+    });
+  }
+};
+app.evn();
+
+// get elements data-go
+(function () {
+  var go = function go(to) {
+    $('html, body').animate({
+      scrollTop: $(to).offset().top - app.offset
+    }, 1000);
+  };
+  var elements = document.querySelectorAll('[data-go]');
+  elements.forEach(function (element) {
+    element.addEventListener('click', function () {
+      go(this.dataset.go);
+    });
+  });
+})();
+var Notification = /*#__PURE__*/function () {
+  function Notification() {
+    _classCallCheck(this, Notification);
+    this.element = document.querySelector('#app-notification');
+    this.state = 'closed';
+    this.btnClose = this.element.querySelector('.notification-close');
+    this.tempo = null;
+    this.evn();
+  }
+  return _createClass(Notification, [{
+    key: "open",
+    value: function open(content) {
+      var _this2 = this;
+      var tempo = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+      this.element.querySelector('.notification-content').innerHTML = content;
+      if (this.state == 'opened') {
+        anime({
+          targets: this.element,
+          duration: 200,
+          easing: 'linear',
+          translateX: [{
+            value: 8
+          }, {
+            value: -8
+          }, {
+            value: 8
+          }, {
+            value: -8
+          }]
+        });
+        return;
+      }
+      anime({
+        targets: this.element,
+        duration: 200,
+        easing: 'linear',
+        scaleY: 1
+      });
+      if (typeof tempo == 'number' && tempo > 0) {
+        this.tempo = setTimeout(function () {
+          _this2.close();
+        }, tempo);
+      }
+      this.state = 'opened';
+    }
+  }, {
+    key: "close",
+    value: function close() {
+      if (this.state == 'closed') return;
+      anime({
+        targets: this.element,
+        duration: 200,
+        easing: 'linear',
+        scaleY: 0
+      });
+      this.state = 'closed';
+    }
+  }, {
+    key: "evn",
+    value: function evn() {
+      var _this3 = this;
+      this.btnClose.addEventListener('click', function () {
+        _this3.close();
+      });
+    }
+  }]);
+}();
+app.notification = new Notification();
+(function () {
+  //Create the object for the entrance plugin
+  var entrance = {};
+
+  //Set up defaults
+  entrance.duration = "1000";
+  entrance.distance = "200";
+  entrance.heightOffset = 20;
+  entrance.isElemInView = function (elem) {
+    var rect = elem.getBoundingClientRect();
+
+    //Return true if any of the following conditions are met:
+    return (
+      // The top is in view: the top is more than 0 and less than the window height (the top of the element is in view)
+      rect.top + entrance.heightOffset >= 0 && rect.top + entrance.heightOffset <= window.innerHeight ||
+      // The bottom is in view: bottom position is greater than 0 and greater than the window height
+      rect.bottom + entrance.heightOffset >= 0 && rect.bottom + entrance.heightOffset <= window.innerHeight ||
+      // The top is above the viewport and the bottom is below the viewport
+      rect.top + entrance.heightOffset < 0 && rect.bottom + entrance.heightOffset > window.innerHeight
+    );
+  };
+  entrance.setInitialStyles = function (elem) {
+    //Required style on the body to stop horizontal scrollbars
+    document.body.style.overflowX = "hidden";
+    var anim = elem.getAttribute("data-entrance");
+    var delay = elem.getAttribute("data-entrance-delay");
+    elem.style.transition = "all " + entrance.duration / 1000 + "s ease";
+
+    // Add a delay is required
+    if (delay) {
+      elem.style.transitionDelay = delay / 1000 + 's';
+    }
+
+    // Set up transition types
+
+    if (anim == "fade") {
+      elem.style.opacity = "0";
+    }
+    if (anim == "from-left") {
+      elem.style.opacity = "0";
+      elem.style.transform = "translate(-" + entrance.distance + "px, 0)";
+    }
+    if (anim == "from-right") {
+      elem.style.opacity = "0";
+      elem.style.transform = "translate(" + entrance.distance + "px, 0)";
+    }
+    if (anim == "from-top") {
+      elem.style.opacity = "0";
+      elem.style.transform = "translate(0, -" + entrance.distance + "px)";
+    }
+    if (anim == "from-bottom") {
+      elem.style.opacity = "0";
+      elem.style.transform = "translate(0, " + entrance.distance + "px)";
+    }
+  };
+  entrance.enter = function (elem) {
+    elem.style.visibility = "visible";
+    elem.style.opacity = "1";
+    elem.style.transform = "translate(0, 0)";
+    elem.className += " has-entered";
+  };
+  entrance.viewportChange = function () {
+    Array.prototype.map.call(entrance.elements, function (item) {
+      if (entrance.isElemInView(item)) {
+        var hasEntered = item.classList.contains("has-entered");
+        if (!hasEntered) {
+          entrance.enter(item);
+        }
+      }
+    });
+  };
+  entrance.init = function () {
+    //Store the elements to be animated
+    entrance.elements = document.querySelectorAll('[data-entrance]');
+
+    // Set up the initial styles on each element, and check if they schould be visible
+    Array.prototype.map.call(entrance.elements, function (item) {
+      entrance.setInitialStyles(item);
+      if (entrance.isElemInView(item)) {
+        // If the elements are in view when loaded, animate in after load
+        addEventListener('load', function () {
+          entrance.enter(item);
+        }, false);
+      }
+    });
+  };
+
+  // Initialise the plugin when the DOM is loaded
+  addEventListener('DOMContentLoaded', entrance.init, false);
+
+  // Add event liseners for scroll events
+  addEventListener('scroll', entrance.viewportChange, false);
+  addEventListener('resize', entrance.viewportChange, false);
+})();
+var Header = /*#__PURE__*/function () {
+  function Header() {
+    _classCallCheck(this, Header);
+    this._header = document.querySelector('#app-header');
+    this._state = 'opened';
+    this._switch();
+    this._evn();
+  }
+  return _createClass(Header, [{
+    key: "_close",
+    value: function _close() {
+      if (this._state == 'closed') return;
+      this._header.classList.add('compressed');
+      this._state = 'closed';
+    }
+  }, {
+    key: "_open",
+    value: function _open() {
+      if (this._state == 'opened') return;
+      this._header.classList.remove('compressed');
+      this._state = 'opened';
+    }
+  }, {
+    key: "_switch",
+    value: function _switch() {
+      if (window.scrollY > 20) {
+        this._close();
+      } else {
+        this._open();
+      }
+    }
+  }, {
+    key: "_evn",
+    value: function _evn() {
+      var _this4 = this;
+      window.addEventListener('scroll', function () {
+        _this4._switch();
+      });
+    }
+  }]);
+}();
+app.header = new Header();
+var Menu = /*#__PURE__*/function () {
+  function Menu() {
+    _classCallCheck(this, Menu);
+    _defineProperty(this, "element", document.querySelector('#app-menu'));
+    _defineProperty(this, "btnOpen", document.querySelector('#btn-open-menu'));
+    _defineProperty(this, "btnClose", document.querySelector('#app-menu .btn-close'));
+    this.evn();
+  }
+  return _createClass(Menu, [{
+    key: "open",
+    value: function open(e) {
+      this.element.style.transformOrigin = "".concat(e.clientX, "px ").concat(e.clientY, "px");
+      anime({
+        targets: this.element,
+        scale: 1,
+        opacity: 1
+      });
+    }
+  }, {
+    key: "close",
+    value: function close() {
+      anime({
+        targets: this.element,
+        scale: 0,
+        opacity: 0
+      });
+    }
+  }, {
+    key: "evn",
+    value: function evn() {
+      var _this5 = this;
+      this.btnOpen.addEventListener('click', function (e) {
+        return _this5.open(e);
+      });
+      this.btnClose.addEventListener('click', function () {
+        return _this5.close();
+      });
+    }
+  }]);
+}();
+app.menu = new Menu();
+var Move3D = /*#__PURE__*/function () {
+  function Move3D() {
+    _classCallCheck(this, Move3D);
+    this._halfX = null;
+    this._halfY = null;
+    this._elements = document.querySelectorAll('.move-3d');
+    this._assignDimentions();
+    if (this._elements.length > 0) {
+      this._evn();
+    }
+  }
+  return _createClass(Move3D, [{
+    key: "_assignDimentions",
+    value: function _assignDimentions() {
+      this._halfX = window.innerWidth / 2;
+      this._halfY = window.innerHeight / 2;
+    }
+  }, {
+    key: "_move",
+    value: function _move(x, y) {
+      this._elements.forEach(function (element) {
+        var posX = parseInt(element.dataset.x * x),
+          posY = parseInt(element.dataset.y * y);
+        //console.log(y)
+        element.style.transform = "translate(".concat(posX, "px, ").concat(posY, "px)");
+      });
+    }
+  }, {
+    key: "_evn",
+    value: function _evn() {
+      var _this6 = this;
+      window.addEventListener('resize', this._assignDimentions);
+      document.addEventListener('mousemove', function (e) {
+        var positionX = (e.clientX - _this6._halfX) / _this6._halfX,
+          positionY = (e.clientY - _this6._halfY) / _this6._halfY;
+        _this6._move(positionX, positionY);
+      });
+    }
+  }]);
+}();
+app.move3D = new Move3D();
+document.querySelector('#app-menu .home').classList.add('active');
